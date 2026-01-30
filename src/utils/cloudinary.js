@@ -1,4 +1,4 @@
-const cloudinary = require('cloudinary').v2;
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs"
 
 cloudinary.config({
@@ -11,13 +11,13 @@ cloudinary.config({
         try {
             if(!localFilePath) return null
             // upload on cloudinary
-            const responce = await cloudinary.uploader.upload(localFilePath,{
+            const response = await cloudinary.uploader.upload(localFilePath,{
                 resource_type:"auto"
             })
             // file upload successfully
             // console.log("file uploaded",responce.url);
             fs.unlinkSync(localFilePath)
-            return responce;
+            return response;
             
         } catch (error) {
             fs.unlinkSync(localFilePath)

@@ -165,7 +165,7 @@ const logoutUser = asyncHandler(async(req,res)=>{
 const generateNewAccessToken = asyncHandler(async(req,res)=>{
     const incomingRefreshToken = req.cookies?.refreshToken;
     if (!incomingRefreshToken) {
-        throw new ApiError(401,"Unauthorized request")
+        throw new ApiError(401,"Unauthorized to generate access token request")
     }
 
     let decodedToken;
