@@ -12,3 +12,4 @@ const admin = asyncHandler(async(req,res,next)=>{
     }
     next()
 })
+export {admin};
