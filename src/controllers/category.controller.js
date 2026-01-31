@@ -39,4 +39,53 @@ const createCategory = asyncHandler(async (req, res) => {
 
 });
 
-export { createCategory };
+const getAllCategories = asyncHandler(async (req, res) => {
+    const categories = await Category.find({isActive:true}).select("name image slug").sort({ createdAt: -1 })
+    return res.status(200)  
+        .json(new ApiResponce(
+            200,
+            categories,
+            "Categories fetched successfully"
+        ))
+})
+
+const getCategoryBySlug = asyncHandler(async(req,res)=>{
+    const {slug} = req.params
+    if(!slug){
+        throw new ApiError(400,"Slug is required")
+    }
+    const slugCategory = await Category.findOne({slug,isActive:true})
+    if(!slugCategory){
+        throw new ApiError(404,"Category not found")
+    }
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        slugCategory,
+        "Category fetched successfully"
+    ))
+    
+})
+
+const toggleCategory = asyncHandler(async(req,res)=>{
+    const {slug} = req.params
+    if(!slug){
+        throw new ApiError(400,"Slug is required")
+    }
+    const category = await Category.findOneAndUpdate({slug})
+    if(!category){
+        throw new ApiError(404,"Category not found")
+    }
+   
+    category.isActive = !category.isActive
+    await category.save()
+    
+    return res.status(200)
+        .json(new ApiResponce(
+            200,
+            category,
+            `${category.isActive ? "Enabled" : "Disabled"} Category successfully`
+        ))
+})
+
+export { createCategory, getAllCategories, getCategoryBySlug, toggleCategory };

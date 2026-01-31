@@ -204,4 +204,9 @@ const generateNewAccessToken = asyncHandler(async(req,res)=>{
     ))
 })
 
+// change password, forgot password, reset password can be added later
+// profile update can be added later
+// get user profile can be added later
+// get all users can be added later (for admin)
+
 export {registerUser,signInUser,logoutUser,generateNewAccessToken,}
