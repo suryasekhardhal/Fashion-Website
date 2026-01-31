@@ -9,7 +9,6 @@ const categorySchema = new Schema({
     },
     slug:{
         type:String,
-        required:true,
         unique:true
     },
     description:{
@@ -27,10 +26,10 @@ const categorySchema = new Schema({
 
 },{timestamps:true})
 
-categorySchema.index({slug:1})
+// categorySchema.index({slug:1})
 
 categorySchema.pre('save', async function(next){
-    if (!this.isModified('name')) return next();
+    if (!this.isModified('name')) return;
     const baseSlug = this.name
     .trim()
     .toLowerCase()
@@ -47,6 +46,6 @@ categorySchema.pre('save', async function(next){
 
     this.slug = slug;
 
-    next();
+    // next();
 })
 export const Category = mongoose.model("Category",categorySchema)

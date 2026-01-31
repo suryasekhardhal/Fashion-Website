@@ -1,4 +1,4 @@
-import { asyncHandler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponce } from "../utils/ApiResponce.js";
 import { Category } from "../models/category.model.js";
@@ -6,7 +6,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const createCategory = asyncHandler(async (req, res) => {
     const {name,description} = req.body
-    if(!name || !description || !image){
+    if(!name || !description){
         throw new ApiError(400,"Name, description and image are required")
     }
     const categoryImageLocalPath = req.file?.path
@@ -32,9 +32,9 @@ const createCategory = asyncHandler(async (req, res) => {
     return res.status(201)
     .json(new ApiResponce(
         201,
-        true,
+        createdCategory,
         "Category created successfully",
-        createdCategory))
+        ))
 
 
 });
