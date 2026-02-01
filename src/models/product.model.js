@@ -9,9 +9,7 @@ const productSchema = new Schema({
     },
     slug:{
         type:String,
-        required:true,
         unique:true,
-        trim:true
     },
     brand:{
         type:String,
@@ -29,10 +27,12 @@ const productSchema = new Schema({
     basePrice:{
         type:Number,
         required:true,
+        min:0
     },
     discountedPrice:{
         type:Number,
-        default:null
+        default:null,
+        min:0
     },
     images:{
         type:[String],
@@ -45,6 +45,10 @@ const productSchema = new Schema({
     isNewArrival:{
         type:Boolean,
         default:false
+    },
+    isActive: {
+    type: Boolean,
+    default: true
     },
     ingredients:[{
         type:String,
@@ -73,12 +77,17 @@ const productSchema = new Schema({
 productSchema.index({category:1})
 productSchema.index({isFeatured:1})
 productSchema.index({isNewArrival:1})
+productSchema.index(
+  { name: 1, brand: 1 },
+  { unique: true }
+);
+
 
 productSchema.plugin(mongooseaggregatePaginate);
 
 productSchema.pre('save', async function(next){
-    if(!this.isModified('name')) return next();
-    const baseSlug = this.name
+    if(!this.isModified('name')) return ;
+    const baseSlug = ` ${this.brand} ${this.name} `
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g,'')
@@ -91,7 +100,7 @@ productSchema.pre('save', async function(next){
         slug = `${baseSlug}-${count}`;
     }
     this.slug = slug;
-    next();
+    
 })
 
 export const Product = mongoose.model("Product",productSchema)
