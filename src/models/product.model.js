@@ -1,4 +1,5 @@
 import mongoose,{Schema} from "mongoose";
+import mongooseaggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const productSchema = new Schema({
     name:{
@@ -68,10 +69,12 @@ const productSchema = new Schema({
     }
 },{timestamps:true})
 
-productSchema.index({slug:1})
+// productSchema.index({slug:1})
 productSchema.index({category:1})
 productSchema.index({isFeatured:1})
 productSchema.index({isNewArrival:1})
+
+productSchema.plugin(mongooseaggregatePaginate);
 
 productSchema.pre('save', async function(next){
     if(!this.isModified('name')) return next();

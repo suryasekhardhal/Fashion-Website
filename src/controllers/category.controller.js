@@ -7,7 +7,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 const createCategory = asyncHandler(async (req, res) => {
     const {name,description} = req.body
     if(!name || !description){
-        throw new ApiError(400,"Name, description and image are required")
+        throw new ApiError(400,"Name and description are required")
     }
     const categoryImageLocalPath = req.file?.path
     if(!categoryImageLocalPath){
@@ -23,16 +23,16 @@ const createCategory = asyncHandler(async (req, res) => {
         description,
         image:image.url
     })
-    const createdCategory = await Category.findById(category._id)
+    // const createdCategory = await Category.findById(category._id)
 
-    if(!createdCategory){
+    if(!category){
         throw new ApiError(500,"Failed to create category")
     }
 
     return res.status(201)
     .json(new ApiResponce(
         201,
-        createdCategory,
+        category,
         "Category created successfully",
         ))
 
@@ -72,7 +72,7 @@ const toggleCategory = asyncHandler(async(req,res)=>{
     if(!slug){
         throw new ApiError(400,"Slug is required")
     }
-    const category = await Category.findOneAndUpdate({slug})
+    const category = await Category.findOne({slug})
     if(!category){
         throw new ApiError(404,"Category not found")
     }
