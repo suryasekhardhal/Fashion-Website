@@ -86,14 +86,16 @@ productSchema.index(
 productSchema.plugin(mongooseaggregatePaginate);
 
 productSchema.pre('save', async function(next){
-    if(!this.isModified('name')) return ;
-    const baseSlug = ` ${this.brand} ${this.name} `
+    if(!this.isModified('name') && !this.isModified('brand')) return 
+    const baseSlug = `${this.brand || ""} ${this.name} `
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g,'')
     .replace(/\s+/g,'-');
 
     let slug = baseSlug;
+    console.log(slug);
+    
     let count =0;
     while(await mongoose.models.Product.findOne({slug,_id:{$ne:this._id}})){
         count++;
