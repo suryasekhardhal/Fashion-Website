@@ -4,7 +4,7 @@ import { ApiResponce } from "../utils/ApiResponce.js";
 import { Product } from "../models/product.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Category } from "../models/category.model.js";
-// it create multple products as same name we must fixed the slug issue so it create one product with unique slug
+
 const createProduct = asyncHandler(async(req,res)=>{
     const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
 
@@ -67,10 +67,81 @@ const createProduct = asyncHandler(async(req,res)=>{
 
 });
 
-const getAllProducts = asyncHandler(async(req,res)=>{});
+const getAllProducts = asyncHandler(async(req,res)=>{
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-const getProductsBySlug = asyncHandler(async(req,res)=>{});
+    
+    const filter = {isActive:true};
+    if(req.query.category) filter.category = req.query.category;
+    if(req.query.isFeatured) filter.isFeatured = req.query.isFeatured === 'true';
+    if(req.query.isNewArrival) filter.isNewArrival = req.query.isNewArrival === 'true';
+    if(req.query.skinType) filter.skinType = req.query.skinType;
 
+    const products =  await Product.find(filter)
+    .lean()
+    .populate("category","name slug")
+    .sort({createdAt:-1})
+    .skip(skip)
+    .limit(limit);
 
+    return res.status(200)
+        .json(new ApiResponce(
+            200,
+            products,
+            "Products fetched successfully",
+        ))
+});
 
-export {createProduct,getAllProducts,getProductsBySlug};
+const getProductsByCategory = asyncHandler(async(req,res)=>{
+    const {slug} = req.params;
+    const category = await Category.findOne({slug,isActive:true});
+    if(!category){
+        throw new ApiError(404,"Category not found");
+    }   
+    const products = await Product.find({category:category._id,isActive:true})
+    .lean()
+    .populate("category","name slug")
+    .sort({createdAt:-1});
+    if (!products || products.length === 0) {
+        return res.status(200)
+        .json(new ApiResponce(
+            200,
+            [],
+            "No products found for this category",
+        ));
+    }
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        products,
+        "Products fetched successfully",
+    ))
+
+});
+
+const getProductsBySlug = asyncHandler(async(req,res)=>{
+    const {slug} = req.params;  
+    const products = await Product.findOne({slug,isActive:true})
+    .lean()
+    .populate("category","name slug")
+    .sort({createdAt:-1});
+    if (!products || products.length === 0) {
+        return res.status(200)
+        .json(new ApiResponce(
+            200,
+            [],
+            "No products found for this slug",
+        ));
+    }
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        products,
+        "Products fetched successfully",
+    ))
+
+});
+
+export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug};
