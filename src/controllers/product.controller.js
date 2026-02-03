@@ -143,5 +143,15 @@ const getProductsBySlug = asyncHandler(async(req,res)=>{
     ))
 
 });
+const toggleProductStatus = asyncHandler(async(req,res)=>{
+    // Implementation for toggling product status
+});
+const updateProduct = asyncHandler(async(req,res)=>{
+    // Implementation for updating a product
+});
 
-export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug};
+const deleteProduct = asyncHandler(async(req,res)=>{
+    // Implementation for deleting a product
+});
+
+export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,deleteProduct};
