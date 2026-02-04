@@ -145,14 +145,60 @@ const getProductsBySlug = asyncHandler(async(req,res)=>{
 });
 const toggleProductStatus = asyncHandler(async(req,res)=>{
     // Implementation for toggling product status
+    const {productId} = req.params;
+    const product = await Product.findById(productId);
+    if(!product){
+        throw new ApiError(404,"Product not found");
+    }
+    product.isActive = !product.isActive;
+    await product.save();
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        product,
+        `Product has been ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+    ))
 
 });
 const updateProduct = asyncHandler(async(req,res)=>{
     // Implementation for updating a product
+    const {productId} = req.params;
+    const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
+    const product = await Product.findByIdAndUpdate(productId,{
+        name,
+        brand,
+        category,
+        basePrice,
+        discountedPrice,
+        description,
+        ingredients,
+        howToUse,
+        skinType
+    },{new:true});
+    if(!product){
+        throw new ApiError(404,"Product not found");
+    }
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        product,
+        "Product updated successfully",
+    ))
 });
 
 const deleteProduct = asyncHandler(async(req,res)=>{
     // Implementation for deleting a product
+    const {productId} = req.params;
+    const product = await Product.findByIdAndDelete(productId);
+    if(!product){
+        throw new ApiError(404,"Product not found");
+    }
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        null,
+        "Product deleted successfully",
+    ))
 });
 
 export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,deleteProduct,toggleProductStatus};
