@@ -143,6 +143,7 @@ const getProductsBySlug = asyncHandler(async(req,res)=>{
     ))
 
 });
+
 const toggleProductStatus = asyncHandler(async(req,res)=>{
     // Implementation for toggling product status
     const {productId} = req.params;
@@ -160,10 +161,13 @@ const toggleProductStatus = asyncHandler(async(req,res)=>{
     ))
 
 });
+
 const updateProduct = asyncHandler(async(req,res)=>{
     // Implementation for updating a product
+    // there is slug generation problem - fix it later
     const {productId} = req.params;
     const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
+    //upadte the file also later
     const product = await Product.findByIdAndUpdate(productId,{
         name,
         brand,
@@ -186,6 +190,41 @@ const updateProduct = asyncHandler(async(req,res)=>{
     ))
 });
 
+const searchProducts = asyncHandler(async(req,res)=>{
+    const {query,category} = req.query;
+    const filter = {isActive:true};
+    if(query){
+        const regex = new RegExp(query,"i");
+        filter.$or = [
+            {name:regex},
+            {brand:regex}
+        ]
+    }
+
+    if(category){
+        const categoryDoc = await Category.findOne({slug:category,isActive:true});
+        if(!categoryDoc){
+        throw new ApiError(400,"Invalid category");
+    }
+    filter.category = categoryDoc._id;
+    }
+
+    const products = await Product.find(filter)
+    .lean()
+    .populate("category","name slug")
+    .sort({createdAt:-1})
+    .limit(20);
+
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        products,
+        products.length > 0 ? "Products fetched successfully" : "No products found",
+    ))
+
+
+});
+
 const deleteProduct = asyncHandler(async(req,res)=>{
     // Implementation for deleting a product
     const {productId} = req.params;
@@ -201,4 +240,4 @@ const deleteProduct = asyncHandler(async(req,res)=>{
     ))
 });
 
-export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,deleteProduct,toggleProductStatus};
+export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,deleteProduct,toggleProductStatus,searchProducts};
