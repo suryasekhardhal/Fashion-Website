@@ -185,6 +185,7 @@ const updateProduct = asyncHandler(async(req,res)=>{
         }
         product.category = category;
     }
+    // validate prices-later
     if(basePrice !== undefined && basePrice !== null) product.basePrice = basePrice;
     if(discountedPrice !== undefined && discountedPrice !== null) product.discountedPrice = discountedPrice;
     if(description) product.description = description;
