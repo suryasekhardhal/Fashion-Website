@@ -4,6 +4,7 @@ import { ApiResponce } from "../utils/ApiResponce.js";
 import { Product } from "../models/product.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Category } from "../models/category.model.js";
+import mongoose from "mongoose";
 
 const createProduct = asyncHandler(async(req,res)=>{
     const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
@@ -147,6 +148,9 @@ const getProductsBySlug = asyncHandler(async(req,res)=>{
 const toggleProductStatus = asyncHandler(async(req,res)=>{
     // Implementation for toggling product status
     const {productId} = req.params;
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+        throw new ApiError(400,"Invalid product ID");
+    }
     const product = await Product.findById(productId);
     if(!product){
         throw new ApiError(404,"Product not found");
@@ -156,7 +160,7 @@ const toggleProductStatus = asyncHandler(async(req,res)=>{
     return res.status(200)
     .json(new ApiResponce(
         200,
-        product,
+        {isActive:product.isActive},
         `Product has been ${product.isActive ? 'activated' : 'deactivated'} successfully`,
     ))
 
@@ -164,24 +168,31 @@ const toggleProductStatus = asyncHandler(async(req,res)=>{
 
 const updateProduct = asyncHandler(async(req,res)=>{
     // Implementation for updating a product
-    // there is slug generation problem - fix it later
+    // there is slug generation problem - fix it later - fixed
     const {productId} = req.params;
     const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
     //upadte the file also later
-    const product = await Product.findByIdAndUpdate(productId,{
-        name,
-        brand,
-        category,
-        basePrice,
-        discountedPrice,
-        description,
-        ingredients,
-        howToUse,
-        skinType
-    },{new:true});
+    const product = await Product.findById(productId);
     if(!product){
         throw new ApiError(404,"Product not found");
     }
+    if(name) product.name = name;
+    if(brand) product.brand = brand;
+    if(category) {
+        const categoryExists = await Category.findOne({_id:category,isActive:true});
+        if(!categoryExists){
+            throw new ApiError(400,"Invalid category");
+        }
+        product.category = category;
+    }
+    if(basePrice !== undefined && basePrice !== null) product.basePrice = basePrice;
+    if(discountedPrice !== undefined && discountedPrice !== null) product.discountedPrice = discountedPrice;
+    if(description) product.description = description;
+    if(ingredients) product.ingredients = ingredients;
+    if(howToUse) product.howToUse = howToUse;
+    if(skinType) product.skinType = skinType;
+    await product.save();
+    await product.populate("category", "name slug");
     return res.status(200)
     .json(new ApiResponce(
         200,
@@ -191,10 +202,17 @@ const updateProduct = asyncHandler(async(req,res)=>{
 });
 
 const searchProducts = asyncHandler(async(req,res)=>{
-    const {query,category} = req.query;
+    const {q,query,category} = req.query;
+    const searchQuery = q || query;
+    if(!searchQuery){
+        throw new ApiError(400,"Search query is required");
+    }
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
     const filter = {isActive:true};
-    if(query){
-        const regex = new RegExp(query,"i");
+    if(searchQuery){
+        const regex = new RegExp(searchQuery,"i");
         filter.$or = [
             {name:regex},
             {brand:regex}
@@ -210,10 +228,11 @@ const searchProducts = asyncHandler(async(req,res)=>{
     }
 
     const products = await Product.find(filter)
-    .lean()
     .populate("category","name slug")
     .sort({createdAt:-1})
-    .limit(20);
+    .limit(limit)
+    .skip(skip)
+    .lean();
 
     return res.status(200)
     .json(new ApiResponce(
@@ -225,19 +244,6 @@ const searchProducts = asyncHandler(async(req,res)=>{
 
 });
 
-const deleteProduct = asyncHandler(async(req,res)=>{
-    // Implementation for deleting a product
-    const {productId} = req.params;
-    const product = await Product.findByIdAndDelete(productId);
-    if(!product){
-        throw new ApiError(404,"Product not found");
-    }
-    return res.status(200)
-    .json(new ApiResponce(
-        200,
-        null,
-        "Product deleted successfully",
-    ))
-});
 
-export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,deleteProduct,toggleProductStatus,searchProducts};
+
+export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,toggleProductStatus,searchProducts};
