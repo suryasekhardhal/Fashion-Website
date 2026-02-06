@@ -17,10 +17,12 @@ app.use(cookieParser())
 import userRoutes from './routes/user.route.js'
 import categoryRoutes from './routes/category.route.js'
 import productRoutes from './routes/product.route.js'
+import shadeRoutes from './routes/shade.route.js'   
 
 app.use("/api/v1/users",userRoutes)
 app.use("/api/v1/categories",categoryRoutes)
 app.use("/api/v1/products",productRoutes)
+app.use("/api/v1/shades",shadeRoutes)
 
 app.use(errorHandler)
 

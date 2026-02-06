@@ -28,7 +28,11 @@ const shadeSchema = new Schema({
     price:{
         type:Number,
         default:null,
-    }    
+    },
+    isActive:{
+        type:Boolean,
+        default:true
+    }   
 },{timestamps:true})
 
 shadeSchema.index({ product: 1, shadeName: 1 }, { unique: true });
