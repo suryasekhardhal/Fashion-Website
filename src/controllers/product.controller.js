@@ -245,6 +245,160 @@ const searchProducts = asyncHandler(async(req,res)=>{
 
 });
 
+const adminProductList = asyncHandler(async(req,res)=>{
+    // Implementation for admin to get all products with more details and filters
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    
+    if(req.query.category) filter.category = req.query.category;
+    if(req.query.isActive) filter.isActive = req.query.isActive === 'true';
+    if(req.query.brand) filter.brand = new RegExp(req.query.brand,"i");
+
+    const totalProducts = await Product.countDocuments(filter);
+
+    const products =  await Product.find(filter)
+    .lean()
+    .populate("category","name slug")
+    .sort({createdAt:-1})
+    .skip(skip)
+    .limit(limit);
+
+    return res.status(200)
+        .json(new ApiResponce(
+            200,
+            {
+                products,
+                pagination:{
+                    totalProducts,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalProducts / limit)
+                }
+            },
+            "Admin only Products fetched successfully",
+        ))
+})
+
+const bulkProductAction = asyncHandler(async(req,res)=>{
+    const {action,productIds} = req.body;
+    if(!action || !productIds || !Array.isArray(productIds) || productIds.length === 0){
+        throw new ApiError(400,"Action and productIds are required and productIds should be a non-empty array");
+    }
+
+    const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
+    if(InvalidIds.length > 0){
+        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    }
+
+    let update = {};
+
+    switch (action) {
+        case "enable":
+            update = {isActive:true};
+            break;
+        case "disable":
+            update = {isActive:false};
+            break;
+        case "feature":
+            update = {isFeatured:true};
+            break;
+        case "unfeature":
+            update = {isFeatured:false};
+            break;
+        default:
+            throw new ApiError(400,"Invalid action");            
+    }
+    const result = await Product.updateMany({
+        _id:{$in:productIds}},
+        {$set:update}
+    );
+    return res.status(200)
+    .json(new ApiResponce( 
+        200,
+        {
+            matched: result.matchedCount,
+            modified: result.modifiedCount
+        },
+        "Bulk action performed successfully",
+    ))
+})
+
+const bulkCategoryChange = asyncHandler(async(req,res)=>{
+    const {productIds,newCategoryId} = req.body;
+    if(!newCategoryId || !mongoose.Types.ObjectId.isValid(newCategoryId)){
+        throw new ApiError(400,"Valid newCategoryId is required");
+    }
+    if(!productIds || !Array.isArray(productIds) || productIds.length === 0){
+        throw new ApiError(400,"productIds should be a non-empty array");
+    }
+    const categoryExists = await Category.findOne({_id:newCategoryId,isActive:true});
+    if(!categoryExists){
+        throw new ApiError(400,"Invalid category");
+    }
+    const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
+    if(InvalidIds.length > 0){
+        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    }
+    const result = await Product.updateMany({
+        _id:{$in:productIds},isActive:true},
+        {$set:{category:newCategoryId}}
+    );
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        {
+            matched: result.matchedCount,
+            modified: result.modifiedCount
+        },
+        "Bulk category change performed successfully",
+    ))
+})
+
+const bulkPriceDiscount = asyncHandler(async(req,res)=>{
+    const {productIds,discountPercentage} = req.body;
+    if(discountPercentage === undefined || discountPercentage === null || isNaN(discountPercentage) || discountPercentage < 0 || discountPercentage > 100){
+        throw new ApiError(400,"Valid discountPercentage between 0 and 100 is required");
+    }
+    if(!productIds || !Array.isArray(productIds) || productIds.length === 0){
+        throw new ApiError(400,"productIds should be a non-empty array");
+    }
+    const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
+    if(InvalidIds.length > 0){
+        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    }
+    const products = await Product.find({_id:{$in:productIds},isActive:true});
+    
+    if(products.length === 0){
+        throw new ApiError(404,"No active products found for discount in the given IDs");
+    }
+
+    const bulkOperations = products.map(product => {
+        const newDiscountedPrice = Math.round(product.basePrice * (1 - discountPercentage / 100));
+        return {
+            updateOne: {
+                filter: { _id: product._id },
+                update: { discountedPrice: newDiscountedPrice }
+            }
+        };
+    });
+    const result = await Product.bulkWrite(bulkOperations);
+    return res.status(200)
+        .json(new ApiResponce(
+            200,
+            {
+                matched: result.matchedCount,
+                modified: result.modifiedCount
+            },
+            "Bulk price discount applied successfully",
+        ))
+})
+
+// getRelatedProducts(productId) - Used for: “You may also like”
+// Add later when frontend needs it.
 
 
-export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,toggleProductStatus,searchProducts};
+
+export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,toggleProductStatus,searchProducts,adminProductList,bulkProductAction,bulkCategoryChange,bulkPriceDiscount};
