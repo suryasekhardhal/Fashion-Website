@@ -39,7 +39,7 @@ const cartSchema = new Schema({
 cartSchema.index(
   { user: 1, "items.product": 1, "items.shade": 1 }
 );
-cartSchema.index({ user: 1 });
+//cartSchema.index({ user: 1 });
 
 
 export const Cart = mongoose.model("Cart",cartSchema)

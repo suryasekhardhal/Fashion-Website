@@ -5,6 +5,7 @@ import { Cart } from "../models/cart.model.js";
 import { Shade } from "../models/shade.model.js";
 import { Product } from "../models/product.model.js";
 import mongoose from "mongoose";
+import e from "express";
 
 const addToCart = asyncHandler(async(req,res)=>{
     const userId = req.user._id;
@@ -19,7 +20,7 @@ const addToCart = asyncHandler(async(req,res)=>{
     if(!product){
         throw new ApiError(404,"Product not found");
     }
-    const shade = await Shade.findOne({_id:shadeId,product:productId,isActive:true}).lean();
+    const shade = await Shade.findOne({_id:shadeId,product:productId}).lean(); // i have to add isActive:true
     if(!shade){
         throw new ApiError(404,"No shades found for this product");
     }
@@ -76,5 +77,88 @@ const addToCart = asyncHandler(async(req,res)=>{
     );
     
 });
+
+const getCart = asyncHandler(async(req,res)=>{
+    const userId = req.user._id;
+    if(!userId){
+        throw new ApiError(401,"Unauthorized User");
+    }
+    const cart = await Cart.findOne({user:userId}).populate({
+        path:"items.product",
+        select:"name basePrice"
+    }).populate({
+        path:"items.shade",
+        select:"shadeName price"
+    });
+
+    if(!cart){
+        return res.status(200)
+        .json(new ApiResponce(
+            200,
+            {items:[]},
+            "Cart is empty",
+        )
+        );
+    }
+
+    cart.totalPrice = cart.items.reduce((total, item) => {
+    return total + item.price * item.quantity;
+    }, 0);
+
+await cart.save()
+
+    return res.status(200)
+    .json(new ApiResponce(
+        200,
+        cart,
+        "Cart retrieved successfully",
+    )
+    );
+});
+
+const updateCartItemQuantity = asyncHandler(async(req,res)=>{
+    const userId = req.user._id;
+    if(!userId){
+        throw new ApiError(401,"Unauthorized User");
+    }
+    const {productId,shadeId,quantity} = req.body;
+    if(!mongoose.Types.ObjectId.isValid(productId) || !mongoose.Types.ObjectId.isValid(shadeId) || quantity === undefined || quantity < 0){
+        throw new ApiError(400,"Product ID, shade ID and quantity are required, and quantity must be greater than zero");
+    }
+    const cart = await Cart.findOne({user:userId});
+    if(!cart){
+        throw new ApiError(404,"Cart not found");
+    }
+    const itemIndex = cart.items.findIndex(item => item.product.toString() === productId.toString() && item.shade.toString() === shadeId.toString());
+    if(itemIndex === -1){
+        throw new ApiError(404,"Cart item not found");
+    }
+    const item = cart.items[itemIndex];
+    const shade = await Shade.findOne({_id:shadeId,product:productId});// i have to add isActive:true 
+    if(!shade){
+        throw new ApiError(404,"No shades found for this product");
+    }
+    if (shade.stock < quantity) {
+        throw new ApiError(400,"Insufficient quantity available");
+    }
+    if(quantity === 0){
+        cart.items.splice(itemIndex,1);
+    } else{
+        item.quantity = quantity;
+    }
+    
+
+    cart.totalPrice = cart.items.reduce((total, item) => total + item.price * item.quantity, 0);
+    await cart.save();
+    return res.status(200)
+        .json(new ApiResponce(
+            200,
+            cart,
+            "Cart item quantity updated successfully",
+        )
+        );
+});
+
+export {addToCart,getCart,updateCartItemQuantity};
     
     
