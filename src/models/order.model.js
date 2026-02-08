@@ -79,12 +79,26 @@ const orderSchema = new Schema(
     },
     totalPrice: {
         type: Number,
+        required: true,
     },
     placedAt: {
         type: Date,
         default: Date.now,
     },
     deliveredAt: {
+        type: Date,
+    },
+    gatewayOrderId: {
+        type: String,
+    },
+    paymentId: {
+        type: String,
+    },
+    paymentProvider: {
+    type: String,
+    enum: ["razorpay", "stripe", "paypal", "cashfree"],
+    },
+    paidAt: {
         type: Date,
     },
 },
