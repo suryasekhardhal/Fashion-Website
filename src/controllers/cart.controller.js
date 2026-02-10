@@ -27,6 +27,8 @@ const addToCart = asyncHandler(async(req,res)=>{
     if (shade.stock < quantity) {
         throw new ApiError(400,"Insufficient quantity available");
     }
+    const finalPrice = shade.price ?? product.discountedPrice ?? product.basePrice;
+
     let cart = await Cart.findOne({user:userId});
     if(!cart){
         cart = new Cart({
@@ -35,9 +37,9 @@ const addToCart = asyncHandler(async(req,res)=>{
                 product:productId,
                 shade:shadeId,
                 quantity,
-                price:shade.price || product.basePrice
+                price:finalPrice
             }],
-            totalPrice:shade.price * quantity
+            totalPrice:finalPrice * quantity
         });
         await cart.save();
 

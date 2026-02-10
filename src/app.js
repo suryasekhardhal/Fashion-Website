@@ -20,6 +20,7 @@ import productRoutes from './routes/product.route.js'
 import shadeRoutes from './routes/shade.route.js' 
 import cartRoutes from './routes/cart.route.js'  
 import razorpayWebhookRoute from './routes/razorpayWebhook.route.js'
+import wishlistRoutes from './routes/wishlist.route.js'
 
 app.use("/api/v1/users",userRoutes)
 app.use("/api/v1/categories",categoryRoutes)
@@ -27,6 +28,7 @@ app.use("/api/v1/products",productRoutes)
 app.use("/api/v1/shades",shadeRoutes)
 app.use("/api/v1/cart",cartRoutes)
 app.use("/api/v1/razorpay-webhook",razorpayWebhookRoute)
+app.use("/api/v1/wishlist",wishlistRoutes)
 
 app.use(errorHandler)
 

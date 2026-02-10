@@ -210,40 +210,57 @@ const adminOrderList = asyncHandler(async (req, res) => {
         .json(new ApiResponce(200, orders, "Orders fetched successfully"));
 });
 
+const ORDER_TRANSITIONS = {
+    processing: ["shipped", "cancelled"],
+    shipped: ["delivered"],
+    delivered: [],
+    cancelled: [],
+};
+
+
 const updateOrderStatus = asyncHandler(async (req, res) => {
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { newStatus } = req.body;
 
-    const allowedStatuses = ["processing", "shipped", "delivered", "cancelled"];
-
-    if (!allowedStatuses.includes(status)) {
-        throw new ApiError(400, "Invalid order status");
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-        throw new ApiError(400, "Invalid order ID");
+    if (!orderId || !newStatus) {
+        throw new ApiError(400, "Order ID and newStatus are required");
     }
 
     const order = await Order.findById(orderId);
+
     if (!order) {
         throw new ApiError(404, "Order not found");
     }
 
-    if (order.orderStatus === "delivered") {
-        throw new ApiError(400, "Delivered order cannot be updated");
+    const currentStatus = order.orderStatus;
+    const allowedNextStatuses = ORDER_TRANSITIONS[currentStatus] || [];
+
+    if (!allowedNextStatuses.includes(newStatus)) {
+        throw new ApiError(
+            400,
+            `Cannot change order status from '${currentStatus}' to '${newStatus}'`
+        );
     }
 
-    order.orderStatus = status;
+    // Business rules
+    if (newStatus === "shipped") {
+        order.shippedAt = new Date();
+    }
 
-    if (status === "delivered") {
+    if (newStatus === "delivered") {
         order.deliveredAt = new Date();
     }
 
+    order.orderStatus = newStatus;
     await order.save();
 
-    return res
-        .status(200)
-        .json(new ApiResponce(200, order, "Order status updated successfully"));
+    return res.status(200).json(
+        new ApiResponce(
+            200,
+            order,
+            `Order status updated to '${newStatus}' successfully`
+        )
+    );
 });
 
 const updatePaymentStatus = asyncHandler(async (req, res) => {

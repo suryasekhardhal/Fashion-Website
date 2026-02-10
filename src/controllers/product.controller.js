@@ -6,39 +6,66 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Category } from "../models/category.model.js";
 import mongoose from "mongoose";
 
-const createProduct = asyncHandler(async(req,res)=>{
-    const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
+const createProduct = asyncHandler(async (req, res) => {
+    const { name, brand, category, basePrice, discountedPrice, description, ingredients, howToUse, skinType } = req.body;
 
-    if(!name || !brand || !category || basePrice === null || !description){
-        throw new ApiError(400,"Name, brand, category, basePrice and description are required");
+    if (!name || !brand || !category || basePrice === null || !description) {
+        throw new ApiError(400, "Name, brand, category, basePrice and description are required");
     }
-    
+
     const imagesUrlsLocalPath = req.files
-    if(!imagesUrlsLocalPath || imagesUrlsLocalPath.length===0){
-        throw new ApiError(400,"Product images are required");
+    if (!imagesUrlsLocalPath || imagesUrlsLocalPath.length === 0) {
+        throw new ApiError(400, "Product images are required");
     }
-    const uploadedImages  = await Promise.all(
-        imagesUrlsLocalPath.map(File=>uploadOnCloudinary(File.path))
+    const uploadedImages = await Promise.all(
+        imagesUrlsLocalPath.map(File => uploadOnCloudinary(File.path))
     )
-   const imageUrls = uploadedImages
-    .filter(img => img)
-    .map(img => img.url);
+    const imageUrls = uploadedImages
+        .filter(img => img)
+        .map(img => img.url);
 
-    if(imageUrls.length===0){
-        throw new ApiError(500,"Failed to upload images");
+    if (imageUrls.length === 0) {
+        throw new ApiError(500, "Failed to upload images");
     }
 
-     if (discountedPrice && discountedPrice >= basePrice) {
-    throw new ApiError(
-      400,
-      "Discounted price must be less than base price"
-    );
-  }
+    if (discountedPrice && discountedPrice >= basePrice) {
+        throw new ApiError(
+            400,
+            "Discounted price must be less than base price"
+        );
+    } const normalizedIngredients = Array.isArray(ingredients)
+        ? ingredients
+        : ingredients
+            ? [ingredients]
+            : [];
 
-    const categoryExists = await Category.findOne({_id:category,isActive:true});
-    if(!categoryExists){
-        throw new ApiError(400,"Invalid category");
+    const normalizedSkinType = Array.isArray(skinType)
+        ? skinType
+        : skinType
+            ? [skinType]
+            : [];
+
+
+
+
+    const categoryExists = await Category.findOne({ _id: category, isActive: true });
+    if (!categoryExists) {
+        throw new ApiError(400, "Invalid category");
     }
+
+    if (basePrice < 0) {
+        throw new ApiError(400, "Base price must be >= 0");
+    }
+
+    if (discountedPrice !== undefined && discountedPrice !== null) {
+        if (discountedPrice < 0) {
+            throw new ApiError(400, "Discounted price must be >= 0");
+        }
+        if (discountedPrice >= basePrice) {
+            throw new ApiError(400, "Discounted price must be less than base price");
+        }
+    }
+
 
     const product = await Product.create({
         name,
@@ -46,20 +73,20 @@ const createProduct = asyncHandler(async(req,res)=>{
         category,
         basePrice,
         discountedPrice,
-        images:imageUrls,
+        images: imageUrls,
         description,
-        ingredients,
+        ingredients: normalizedIngredients,
         howToUse,
-        skinType
-     });
+        skinType: normalizedSkinType
+    });
 
-     if(!product){
-        throw new ApiError(500,"Failed to create product");
-     }
+    if (!product) {
+        throw new ApiError(500, "Failed to create product");
+    }
 
-     await product.populate("category", "name slug");
+    await product.populate("category", "name slug");
 
-        return res.status(201)
+    return res.status(201)
         .json(new ApiResponce(
             201,
             product,
@@ -68,24 +95,24 @@ const createProduct = asyncHandler(async(req,res)=>{
 
 });
 
-const getAllProducts = asyncHandler(async(req,res)=>{
+const getAllProducts = asyncHandler(async (req, res) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    
-    const filter = {isActive:true};
-    if(req.query.category) filter.category = req.query.category;
-    if(req.query.isFeatured) filter.isFeatured = req.query.isFeatured === 'true';
-    if(req.query.isNewArrival) filter.isNewArrival = req.query.isNewArrival === 'true';
-    if(req.query.skinType) filter.skinType = req.query.skinType;
 
-    const products =  await Product.find(filter)
-    .lean()
-    .populate("category","name slug")
-    .sort({createdAt:-1})
-    .skip(skip)
-    .limit(limit);
+    const filter = { isActive: true };
+    if (req.query.category) filter.category = req.query.category;
+    if (req.query.isFeatured) filter.isFeatured = req.query.isFeatured === 'true';
+    if (req.query.isNewArrival) filter.isNewArrival = req.query.isNewArrival === 'true';
+    if (req.query.skinType) filter.skinType = req.query.skinType;
+
+    const products = await Product.find(filter)
+        .lean()
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
     return res.status(200)
         .json(new ApiResponce(
@@ -95,183 +122,209 @@ const getAllProducts = asyncHandler(async(req,res)=>{
         ))
 });
 
-const getProductsByCategory = asyncHandler(async(req,res)=>{
-    const {slug} = req.params;
-    const category = await Category.findOne({slug,isActive:true});
-    if(!category){
-        throw new ApiError(404,"Category not found");
-    }   
-    const products = await Product.find({category:category._id,isActive:true})
-    .lean()
-    .populate("category","name slug")
-    .sort({createdAt:-1});
+const getProductsByCategory = asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const category = await Category.findOne({ slug, isActive: true });
+    if (!category) {
+        throw new ApiError(404, "Category not found");
+    }
+    const products = await Product.find({ category: category._id, isActive: true })
+        .lean()
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 });
     if (!products || products.length === 0) {
         return res.status(200)
-        .json(new ApiResponce(
-            200,
-            [],
-            "No products found for this category",
-        ));
+            .json(new ApiResponce(
+                200,
+                [],
+                "No products found for this category",
+            ));
     }
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        products,
-        "Products fetched successfully",
-    ))
+        .json(new ApiResponce(
+            200,
+            products,
+            "Products fetched successfully",
+        ))
 
 });
 
-const getProductsBySlug = asyncHandler(async(req,res)=>{
-    const {slug} = req.params;  
-    const products = await Product.findOne({slug,isActive:true})
-    .lean()
-    .populate("category","name slug")
-    .sort({createdAt:-1});
+const getProductsBySlug = asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const products = await Product.findOne({ slug, isActive: true })
+        .lean()
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 });
     if (!products || products.length === 0) {
         return res.status(200)
-        .json(new ApiResponce(
-            200,
-            [],
-            "No products found for this slug",
-        ));
+            .json(new ApiResponce(
+                200,
+                [],
+                "No products found for this slug",
+            ));
     }
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        products,
-        "Products fetched successfully",
-    ))
+        .json(new ApiResponce(
+            200,
+            products,
+            "Products fetched successfully",
+        ))
 
 });
 
-const toggleProductStatus = asyncHandler(async(req,res)=>{
+const toggleProductStatus = asyncHandler(async (req, res) => {
     // Implementation for toggling product status
-    const {productId} = req.params;
+    const { productId } = req.params;
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-        throw new ApiError(400,"Invalid product ID");
+        throw new ApiError(400, "Invalid product ID");
     }
     const product = await Product.findById(productId);
-    if(!product){
-        throw new ApiError(404,"Product not found");
+    if (!product) {
+        throw new ApiError(404, "Product not found");
     }
     product.isActive = !product.isActive;
     await product.save();
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        {isActive:product.isActive},
-        `Product has been ${product.isActive ? 'activated' : 'deactivated'} successfully`,
-    ))
+        .json(new ApiResponce(
+            200,
+            { isActive: product.isActive },
+            `Product has been ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+        ))
 
 });
 
-const updateProduct = asyncHandler(async(req,res)=>{
+const updateProduct = asyncHandler(async (req, res) => {
     // Implementation for updating a product
     // there is slug generation problem - fix it later - fixed
-    const {productId} = req.params;
-    const {name,brand,category,basePrice,discountedPrice,description,ingredients,howToUse,skinType} = req.body;
+    const { productId } = req.params;
+    const { name, brand, category, basePrice, discountedPrice, description, ingredients, howToUse, skinType } = req.body;
     //upadte the file also later
     const product = await Product.findById(productId);
-    if(!product){
-        throw new ApiError(404,"Product not found");
+    if (!product) {
+        throw new ApiError(404, "Product not found");
     }
-    if(name) product.name = name;
-    if(brand) product.brand = brand;
-    if(category) {
-        const categoryExists = await Category.findOne({_id:category,isActive:true});
-        if(!categoryExists){
-            throw new ApiError(400,"Invalid category");
+    if (name) product.name = name;
+    if (brand) product.brand = brand;
+    if (category) {
+        const categoryExists = await Category.findOne({ _id: category, isActive: true });
+        if (!categoryExists) {
+            throw new ApiError(400, "Invalid category");
         }
         product.category = category;
     }
+    const normalizedIngredients = Array.isArray(ingredients)
+        ? ingredients
+        : ingredients
+            ? [ingredients]
+            : [];
+
+    const normalizedSkinType = Array.isArray(skinType)
+        ? skinType
+        : skinType
+            ? [skinType]
+            : [];
+
     // validate prices-later
-    if(basePrice !== undefined && basePrice !== null) product.basePrice = basePrice;
-    if(discountedPrice !== undefined && discountedPrice !== null) product.discountedPrice = discountedPrice;
-    if(description) product.description = description;
-    if(ingredients) product.ingredients = ingredients;
-    if(howToUse) product.howToUse = howToUse;
-    if(skinType) product.skinType = skinType;
+    if (basePrice !== undefined && basePrice !== null) product.basePrice = basePrice;
+    if (discountedPrice !== undefined && discountedPrice !== null) product.discountedPrice = discountedPrice;
+    if (description) product.description = description;
+    if (ingredients) product.ingredients = normalizedIngredients;
+    if (howToUse) product.howToUse = howToUse;
+    if (skinType) product.skinType = normalizedSkinType;
+    if (basePrice !== undefined && basePrice < 0) {
+        throw new ApiError(400, "Base price must be >= 0");
+    }
+
+    if (
+        discountedPrice !== undefined &&
+        discountedPrice !== null &&
+        basePrice !== undefined &&
+        discountedPrice >= basePrice
+    ) {
+        throw new ApiError(400, "Discounted price must be less than base price");
+    }
+
     await product.save();
     await product.populate("category", "name slug");
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        product,
-        "Product updated successfully",
-    ))
+        .json(new ApiResponce(
+            200,
+            product,
+            "Product updated successfully",
+        ))
 });
 
-const searchProducts = asyncHandler(async(req,res)=>{
-    const {q,query,category} = req.query;
+const searchProducts = asyncHandler(async (req, res) => {
+    const { q, query, category } = req.query;
     const searchQuery = q || query;
-    if(!searchQuery){
-        throw new ApiError(400,"Search query is required");
+    if (!searchQuery) {
+        throw new ApiError(400, "Search query is required");
     }
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const filter = {isActive:true};
-    if(searchQuery){
-        const regex = new RegExp(searchQuery,"i");
+    const filter = { isActive: true };
+    if (searchQuery) {
+        const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escaped, "i");
         filter.$or = [
-            {name:regex},
-            {brand:regex}
+            { name: regex },
+            { brand: regex }
         ]
     }
 
-    if(category){
-        const categoryDoc = await Category.findOne({slug:category,isActive:true});
-        if(!categoryDoc){
-        throw new ApiError(400,"Invalid category");
-    }
-    filter.category = categoryDoc._id;
+    if (category) {
+        const categoryDoc = await Category.findOne({ slug: category, isActive: true });
+        if (!categoryDoc) {
+            throw new ApiError(400, "Invalid category");
+        }
+        filter.category = categoryDoc._id;
     }
 
     const products = await Product.find(filter)
-    .populate("category","name slug")
-    .sort({createdAt:-1})
-    .limit(limit)
-    .skip(skip)
-    .lean();
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(skip)
+        .lean();
 
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        products,
-        products.length > 0 ? "Products fetched successfully" : "No products found",
-    ))
+        .json(new ApiResponce(
+            200,
+            products,
+            products.length > 0 ? "Products fetched successfully" : "No products found",
+        ))
 
 
 });
 
-const adminProductList = asyncHandler(async(req,res)=>{
+const adminProductList = asyncHandler(async (req, res) => {
     // Implementation for admin to get all products with more details and filters
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
     const filter = {};
-    
-    if(req.query.category) filter.category = req.query.category;
-    if(req.query.isActive) filter.isActive = req.query.isActive === 'true';
-    if(req.query.brand) filter.brand = new RegExp(req.query.brand,"i");
+
+    if (req.query.category) filter.category = req.query.category;
+    if (req.query.isActive) filter.isActive = req.query.isActive === 'true';
+    if (req.query.brand) filter.brand = new RegExp(req.query.brand, "i");
 
     const totalProducts = await Product.countDocuments(filter);
 
-    const products =  await Product.find(filter)
-    .lean()
-    .populate("category","name slug")
-    .sort({createdAt:-1})
-    .skip(skip)
-    .limit(limit);
+    const products = await Product.find(filter)
+        .lean()
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
     return res.status(200)
         .json(new ApiResponce(
             200,
             {
                 products,
-                pagination:{
+                pagination: {
                     totalProducts,
                     page,
                     limit,
@@ -282,97 +335,99 @@ const adminProductList = asyncHandler(async(req,res)=>{
         ))
 })
 
-const bulkProductAction = asyncHandler(async(req,res)=>{
-    const {action,productIds} = req.body;
-    if(!action || !productIds || !Array.isArray(productIds) || productIds.length === 0){
-        throw new ApiError(400,"Action and productIds are required and productIds should be a non-empty array");
+const bulkProductAction = asyncHandler(async (req, res) => {
+    const { action, productIds } = req.body;
+    if (!action || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        throw new ApiError(400, "Action and productIds are required and productIds should be a non-empty array");
     }
 
     const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
-    if(InvalidIds.length > 0){
-        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    if (InvalidIds.length > 0) {
+        throw new ApiError(400, `Invalid product IDs: ${InvalidIds.join(", ")}`);
     }
 
     let update = {};
 
     switch (action) {
         case "enable":
-            update = {isActive:true};
+            update = { isActive: true };
             break;
         case "disable":
-            update = {isActive:false};
+            update = { isActive: false };
             break;
         case "feature":
-            update = {isFeatured:true};
+            update = { isFeatured: true };
             break;
         case "unfeature":
-            update = {isFeatured:false};
+            update = { isFeatured: false };
             break;
         default:
-            throw new ApiError(400,"Invalid action");            
+            throw new ApiError(400, "Invalid action");
     }
     const result = await Product.updateMany({
-        _id:{$in:productIds}},
-        {$set:update}
+        _id: { $in: productIds }
+    },
+        { $set: update }
     );
     return res.status(200)
-    .json(new ApiResponce( 
-        200,
-        {
-            matched: result.matchedCount,
-            modified: result.modifiedCount
-        },
-        "Bulk action performed successfully",
-    ))
+        .json(new ApiResponce(
+            200,
+            {
+                matched: result.matchedCount,
+                modified: result.modifiedCount
+            },
+            "Bulk action performed successfully",
+        ))
 })
 
-const bulkCategoryChange = asyncHandler(async(req,res)=>{
-    const {productIds,newCategoryId} = req.body;
-    if(!newCategoryId || !mongoose.Types.ObjectId.isValid(newCategoryId)){
-        throw new ApiError(400,"Valid newCategoryId is required");
+const bulkCategoryChange = asyncHandler(async (req, res) => {
+    const { productIds, newCategoryId } = req.body;
+    if (!newCategoryId || !mongoose.Types.ObjectId.isValid(newCategoryId)) {
+        throw new ApiError(400, "Valid newCategoryId is required");
     }
-    if(!productIds || !Array.isArray(productIds) || productIds.length === 0){
-        throw new ApiError(400,"productIds should be a non-empty array");
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        throw new ApiError(400, "productIds should be a non-empty array");
     }
-    const categoryExists = await Category.findOne({_id:newCategoryId,isActive:true});
-    if(!categoryExists){
-        throw new ApiError(400,"Invalid category");
+    const categoryExists = await Category.findOne({ _id: newCategoryId, isActive: true });
+    if (!categoryExists) {
+        throw new ApiError(400, "Invalid category");
     }
     const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
-    if(InvalidIds.length > 0){
-        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    if (InvalidIds.length > 0) {
+        throw new ApiError(400, `Invalid product IDs: ${InvalidIds.join(", ")}`);
     }
     const result = await Product.updateMany({
-        _id:{$in:productIds},isActive:true},
-        {$set:{category:newCategoryId}}
+        _id: { $in: productIds }, isActive: true
+    },
+        { $set: { category: newCategoryId } }
     );
     return res.status(200)
-    .json(new ApiResponce(
-        200,
-        {
-            matched: result.matchedCount,
-            modified: result.modifiedCount
-        },
-        "Bulk category change performed successfully",
-    ))
+        .json(new ApiResponce(
+            200,
+            {
+                matched: result.matchedCount,
+                modified: result.modifiedCount
+            },
+            "Bulk category change performed successfully",
+        ))
 })
 
-const bulkPriceDiscount = asyncHandler(async(req,res)=>{
-    const {productIds,discountPercentage} = req.body;
-    if(discountPercentage === undefined || discountPercentage === null || isNaN(discountPercentage) || discountPercentage < 0 || discountPercentage > 100){
-        throw new ApiError(400,"Valid discountPercentage between 0 and 100 is required");
+const bulkPriceDiscount = asyncHandler(async (req, res) => {
+    const { productIds, discountPercentage } = req.body;
+    if (discountPercentage === undefined || discountPercentage === null || isNaN(discountPercentage) || discountPercentage < 0 || discountPercentage > 100) {
+        throw new ApiError(400, "Valid discountPercentage between 0 and 100 is required");
     }
-    if(!productIds || !Array.isArray(productIds) || productIds.length === 0){
-        throw new ApiError(400,"productIds should be a non-empty array");
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        throw new ApiError(400, "productIds should be a non-empty array");
     }
     const InvalidIds = productIds.filter(id => !mongoose.Types.ObjectId.isValid(id));
-    if(InvalidIds.length > 0){
-        throw new ApiError(400,`Invalid product IDs: ${InvalidIds.join(", ")}`);
+    if (InvalidIds.length > 0) {
+        throw new ApiError(400, `Invalid product IDs: ${InvalidIds.join(", ")}`);
     }
-    const products = await Product.find({_id:{$in:productIds},isActive:true});
-    
-    if(products.length === 0){
-        throw new ApiError(404,"No active products found for discount in the given IDs");
+    const products = await Product.find({ _id: { $in: productIds }, isActive: true });
+
+    if (products.length === 0) {
+        throw new ApiError(404, "No active products found for discount in the given IDs");
     }
 
     const bulkOperations = products.map(product => {
@@ -401,4 +456,4 @@ const bulkPriceDiscount = asyncHandler(async(req,res)=>{
 
 
 
-export {createProduct,getAllProducts,getProductsByCategory,getProductsBySlug,updateProduct,toggleProductStatus,searchProducts,adminProductList,bulkProductAction,bulkCategoryChange,bulkPriceDiscount};
+export { createProduct, getAllProducts, getProductsByCategory, getProductsBySlug, updateProduct, toggleProductStatus, searchProducts, adminProductList, bulkProductAction, bulkCategoryChange, bulkPriceDiscount };
