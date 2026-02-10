@@ -30,7 +30,8 @@ reviewSchema.statics.calculateAverageRating = async function(productId){
     const result = await this.aggregate([
         {
             $match:{
-                product:productId
+                product:productId,
+                isActive:true
             }
         },
         {
