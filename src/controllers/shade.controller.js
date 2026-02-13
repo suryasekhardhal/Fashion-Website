@@ -20,7 +20,7 @@ const createShade = asyncHandler(async(req,res)=>{
         throw new ApiError(400, "Shade image is required");
     }
     
-    const product = await Product.findById({productId,isActive:true});
+    const product = await Product.findOne({_id:productId,isActive:true});
     if(!product){
         throw new ApiError(404,"Product not found");
     }
